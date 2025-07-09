@@ -40,11 +40,11 @@ const io = new Server(server, {
       NODE_ENV === "production"
         ? ["https://dev.moot7.com"]
         : [
-            "https://dev.moot7.com",
-            "http://dev.moot7.com",
-            "http://localhost:3000",
-            process.env.API_SOCKET_LOCAL_URL,
-          ],
+          "https://dev.moot7.com",
+          "http://dev.moot7.com",
+          "http://localhost:3000",
+          process.env.API_SOCKET_LOCAL_URL,
+        ],
     methods: ["GET", "POST"],
     allowedHeaders: ["X-CSRF-TOKEN"],
     credentials: true,
@@ -72,17 +72,21 @@ const io = new Server(server, {
   }
 })();
 
-const onlineUsers = {};
+const onlineUsers = new Map();
 
 // Eventos do Socket.io
 io.on("connection", (socket) => {
   socket.on("auth", async (user) => {
     try {
-      const userId = socket.handshake.auth.userId;
+      const userId = user.id;
       await redisClient.sAdd(`${PREFIX}online_users`, String(user.id));
       await redisClient.expire(`${PREFIX}online_users`, 100000);
 
-      onlineUsers[userId] = user.id;
+      if (!onlineUsers.has(userId)) {
+        onlineUsers.set(userId, new Set())
+      }
+
+      onlineUsers.get(userId).add(socket.id)
       socket.user = user;
       socket.emit("authenticated");
       socket.emit("is_online", user);
@@ -134,31 +138,41 @@ io.on("connection", (socket) => {
 
   socket.on("logout_user", async (data) => {
     await redisClient.sRem(`${PREFIX}online_users`, String(data.user_id));
+    socket.broadcast.emit("is_offline", data.user_id);
     console.log(`✅ Usuário ${data.user_id} deslogou`);
   });
 
   socket.on("disconnect", async () => {
     console.log("Cliente desconectado:", socket.id);
 
-    onlineUsers[userId] = onlineUsers[userId].filter(id => id !== socket.id);
+  
+    if (socket.user?.id) {
+      const userId = socket.user.id;
 
-    if (socket.user?.id && onlineUsers[userId].length === 0) {
-      try {
-        const wasOnline = await redisClient.sIsMember(
-          `${PREFIX}online_users`,
-          String(socket.user.id)
-        );
-        if (wasOnline) {
-          await redisClient.sRem(
-            `${PREFIX}online_users`,
-            String(socket.user.id)
-          );
-          delete onlineUsers[socket.user.id];
-          socket.broadcast.emit("is_offline", socket.user.id);
-          console.log(`👋 ${socket.user.id} desconectado`);
+      if (onlineUsers.has(userId)) {
+        const userSocket = onlineUsers.get(userId);
+        userSocket.delete(socket.id)
+
+        if (userSocket.size === 0) {
+          onlineUsers.delete(userId)
+
+          try {
+            const wasOnline = await redisClient.sIsMember(
+              `${PREFIX}online_users`,
+              String(socket.user.id)
+            );
+            if (wasOnline) {
+              await redisClient.sRem(
+                `${PREFIX}online_users`,
+                String(socket.user.id)
+              );
+              socket.broadcast.emit("is_offline", socket.user.id);
+              console.log(`👋 ${socket.user.id} desconectado`);
+            }
+          } catch (error) {
+            console.error("Erro ao remover usuário:", error);
+          }
         }
-      } catch (error) {
-        console.error("Erro ao remover usuário:", error);
       }
     }
     console.log(`🔌 ${socket.id} desconectado`);
@@ -177,10 +191,10 @@ setInterval(() => {
   console.log(`Uso de Memória: 
     RSS: ${(memoryUsage.rss / 1024 / 1024).toFixed(2)}MB |
     Heap: ${(memoryUsage.heapUsed / 1024 / 1024).toFixed(2)}/${(
-    memoryUsage.heapTotal /
-    1024 /
-    1024
-  ).toFixed(2)}MB`);
+      memoryUsage.heapTotal /
+      1024 /
+      1024
+    ).toFixed(2)}MB`);
 }, 60000);
 
 // Tratamento de erros
