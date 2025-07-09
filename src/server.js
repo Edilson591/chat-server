@@ -77,7 +77,6 @@ const onlineUsers = {};
 // Eventos do Socket.io
 io.on("connection", (socket) => {
   socket.on("auth", async (user) => {
-    console.log(user);
     try {
       const userId = socket.handshake.auth.userId;
       await redisClient.sAdd(`${PREFIX}online_users`, String(user.id));
@@ -141,7 +140,9 @@ io.on("connection", (socket) => {
   socket.on("disconnect", async () => {
     console.log("Cliente desconectado:", socket.id);
 
-    if (socket.user?.id) {
+    onlineUsers[userId] = onlineUsers[userId].filter(id => id !== socket.id);
+
+    if (socket.user?.id && onlineUsers[userId].length === 0) {
       try {
         const wasOnline = await redisClient.sIsMember(
           `${PREFIX}online_users`,
