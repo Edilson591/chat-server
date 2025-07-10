@@ -29,6 +29,7 @@ const redisClient = createClient({
   url: process.env.REDIS_URL || "redis://localhost:6379",
   socket: {
     reconnectStrategy: (retries) => Math.min(retries * 100, 5000),
+    // connectTimeout: 15000
   },
 });
 const redisSubcriber = redisClient.duplicate();
@@ -112,7 +113,7 @@ io.on("connection", (socket) => {
     console.log(`Cliente ${socket.id} entrou na sala ${room}`);
   });
 
-  socket.on("send_message", (data) => {
+  socket.on("send_message", async (data) => {
     console.log("Mensagem recebida:", data);
 
     try {
@@ -126,6 +127,12 @@ io.on("connection", (socket) => {
       };
 
       io.to(`chat.${data.chat_id}`).emit("new_message", messageData);
+
+      // const notification = await getNotificationData(data.chat_id, data.receiver_id);
+      io.to(data.to_user_id).emit("notification_update", {
+        chat_id: data.chat_id,
+        last_sender_id: data.user_id,
+      });
     } catch (error) {
       console.error("Erro ao processar mensagem:", error.message);
 
@@ -145,7 +152,7 @@ io.on("connection", (socket) => {
   socket.on("disconnect", async () => {
     console.log("Cliente desconectado:", socket.id);
 
-  
+
     if (socket.user?.id) {
       const userId = socket.user.id;
 
@@ -215,3 +222,30 @@ server.listen(PORT, "0.0.0.0", () => {
   WebSocket: ws://localhost:${PORT}
   `);
 });
+
+
+async function getNotificationData(chatId, receiverId) {
+  // Consulta seu banco para contar mensagens não lidas e pegar last_sender_id
+  const unreadCount = await Message.count({
+    where: {
+      chat_id: chatId,
+      receiver_id: receiverId,
+      is_read: false,
+    },
+  });
+
+  const lastUnreadMessage = await Message.findOne({
+    where: {
+      chat_id: chatId,
+      receiver_id: receiverId,
+      is_read: false,
+    },
+    order: [["created_at", "DESC"]],
+  });
+
+  return {
+    chat_id: chatId,
+    unread_count: unreadCount,
+    last_sender_id: lastUnreadMessage ? lastUnreadMessage.user_id : null,
+  };
+}
