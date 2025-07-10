@@ -133,7 +133,10 @@ io.on("connection", (socket) => {
 
 
       // const notification = await getNotificationData(data.chat_id, data.receiver_id);
-      io.to(`user_${data.receiver_id}`).emit("notification_update", data);
+      io.to(`user_${data.receiver_id}`).emit("notification_update", {
+        chat_id: data.chat_id,
+        last_sender_id: data.user_id,
+      });
     } catch (error) {
       console.error("Erro ao processar mensagem:", error.message);
 
