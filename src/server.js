@@ -94,6 +94,9 @@ io.on("connection", (socket) => {
       console.log("Usuário autenticado:", user);
       socket.broadcast.emit("is_online", user);
 
+      socket.join(`user_${userId}`);
+      console.log(`Socket ${socket.id} entrou na sala user_${userId}`);
+
       console.log(`👤 ${user.id} autenticado`);
     } catch (error) {
       console.error("Erro na autenticação:", error);
@@ -129,12 +132,8 @@ io.on("connection", (socket) => {
       io.to(`chat.${data.chat_id}`).emit("new_message", messageData);
 
 
-      const receiverSockets = onlineUsers.get(data.receiver_id);
-
-      console.log(receiverSockets);
-
       // const notification = await getNotificationData(data.chat_id, data.receiver_id);
-      io.to(data.receiver_id).emit("notification_update", {
+      io.to(`user_${data.receiver_id}`).emit("notification_update", {
         chat_id: data.chat_id,
         last_sender_id: data.user_id,
       });
