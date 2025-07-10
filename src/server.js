@@ -129,9 +129,9 @@ io.on("connection", (socket) => {
       io.to(`chat.${data.chat_id}`).emit("new_message", messageData);
 
 
-      // const receiverSockets = onlineUsers.get(data.receiver_id);
+      const receiverSockets = onlineUsers.get(data.receiver_id);
 
-      console.log(onlineUsers);
+      console.log(receiverSockets);
 
       // const notification = await getNotificationData(data.chat_id, data.receiver_id);
       io.to(data.receiver_id).emit("notification_update", {
