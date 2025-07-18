@@ -75,6 +75,7 @@ const io = new Server(server, {
 
 const onlineUsers = new Map();
 
+
 // Eventos do Socket.io
 io.on("connection", (socket) => {
   socket.on("auth", async (user) => {
@@ -137,6 +138,11 @@ io.on("connection", (socket) => {
         chat_id: data.chat_id,
         last_sender_id: data.user_id,
       });
+
+      io.to(`user_${data.user_id}`).emit("message_delivered", {
+        id: data.id,
+        chat_id: data.chat_id
+      });
     } catch (error) {
       console.error("Erro ao processar mensagem:", error.message);
 
@@ -146,6 +152,17 @@ io.on("connection", (socket) => {
       });
     }
   });
+
+  socket.on("mark_as_seen", (data) => {
+    console.log("Mensagem marcada como vista:", data);
+    io.to(`chat.${data.chat_id}`).emit("message_seen", {
+      id: data.message_id,
+      chat_id: data.chat_id,
+      sender_id: data.user_id,
+      receiver_id: data.receiver_id,
+    });
+  });
+
 
   socket.on("logout_user", async (data) => {
     await redisClient.sRem(`${PREFIX}online_users`, String(data.user_id));
