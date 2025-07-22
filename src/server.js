@@ -155,7 +155,7 @@ io.on("connection", (socket) => {
 
   socket.on("mark_as_seen", (data) => {
     console.log("Mensagem marcada como vista:", data);
-    io.to(`chat.${data.chat_id}`).emit("message_seen", {
+    socket.broadcast.to(`chat.${data.chat_id}`).emit("message_seen", {
       id: data.message_id,
       chat_id: data.chat_id,
       sender_id: data.user_id,
