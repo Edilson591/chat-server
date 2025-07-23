@@ -163,6 +163,16 @@ io.on("connection", (socket) => {
     });
   });
 
+  socket.on("message_pinned", (data) => {
+    console.log("menssagem fixada" + data.chat_id)
+    io.to(`chat.${data.chat_id}`).emit("message_pinned", data);
+  });
+
+  socket.on("message_unpinned", (data) => {
+     console.log("menssagem desfixada" + data)
+    io.to(`chat.${data.chat_id}`).emit("message_unpinned", data);
+  });
+
 
   socket.on("logout_user", async (data) => {
     await redisClient.sRem(`${PREFIX}online_users`, String(data.user_id));
