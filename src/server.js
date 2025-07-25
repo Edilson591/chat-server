@@ -173,6 +173,15 @@ io.on("connection", (socket) => {
     io.to(`chat.${data.chat_id}`).emit("message_unpinned", data);
   });
 
+  socket.on("message_edited", (data) => {
+      console.log(`Mensagem editada - ID: ${data.id}, Chat: ${data.chat_id}`);
+
+      io.to(`chat.${data.chat_id}`).emit("message_edited", data);
+
+  })
+
+
+
 
   socket.on("logout_user", async (data) => {
     await redisClient.sRem(`${PREFIX}online_users`, String(data.user_id));
